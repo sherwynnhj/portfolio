@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SHERWYNNHJ — Dream State</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Archivo+Black&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+<style>
+  :root{ --bg:#050506; --ink:#f3f2ee; --mute:#7d7d86; --line:rgba(243,242,238,.12);
+    --cobalt:#0000FF; --cobalt-glow:#5b5bff;
+    --blue:#0000FF; --teal:#0000FF; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:"Fraunces",Georgia,serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;cursor:none}
+  ::selection{background:var(--teal);color:#021}
+  .mono{font-family:"Space Mono",monospace;letter-spacing:.04em}
+
+  .cursor{position:fixed;top:0;left:0;width:34px;height:34px;border:1px solid rgba(243,242,238,.8);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:9999;mix-blend-mode:difference;transition:width .25s,height .25s}
+  .cursor::after{content:"";position:absolute;inset:50%;width:3px;height:3px;background:var(--ink);border-radius:50%;transform:translate(-50%,-50%)}
+  .cursor.big{width:60px;height:60px}
+  @media (hover:none){body{cursor:auto}.cursor{display:none}}
+
+  #loader{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity .8s,visibility .8s}
+  #loader.done{opacity:0;visibility:hidden}
+  .load-mark{font-size:clamp(34px,7vw,72px);font-weight:300;letter-spacing:.14em;font-style:italic}
+  .load-bar{width:min(70vw,320px);height:1px;background:var(--line);position:relative;overflow:hidden}
+  .load-bar i{position:absolute;left:0;top:0;height:100%;width:0;background:var(--ink)}
+  .load-meta{display:flex;justify-content:space-between;width:min(70vw,320px);font-size:11px;color:var(--mute)}
+
+  /* name blasted across the top (CHRIS MACARI style) */
+  .masthead{position:fixed;top:0;left:0;width:100%;z-index:210;overflow:hidden;
+    padding:clamp(4px,1.2vh,14px) clamp(14px,2.6vw,34px) 0;pointer-events:none}
+  .word{font-family:"Archivo Black","Archivo",sans-serif;font-weight:400;color:var(--cobalt);
+    text-align:center;line-height:.8;letter-spacing:-.018em;white-space:nowrap;font-size:200px;
+    transform-origin:50% 0;will-change:font-size;text-shadow:0 2px 34px rgba(0,0,0,.55)}
+  .word sup{font-family:"Archivo",sans-serif;font-weight:800;font-size:.14em;vertical-align:top;letter-spacing:0}
+
+  #journey{height:560vh;position:relative}
+  .stage{position:sticky;top:0;height:100vh;width:100%;overflow:hidden;
+    background:radial-gradient(66vh 50vh at 50% 46%, rgba(0,0,255,.20), rgba(10,26,90,.06) 56%, transparent 76%), #050506}
+
+  /* galaxy (behind) */
+  .galaxy{position:absolute;inset:0;z-index:1;background:radial-gradient(120% 80% at 50% 88%, #16306e 0%, #0a1640 45%, #04050c 100%);opacity:0;will-change:opacity}
+  .galaxy .webgl,.galaxy .css3d{position:absolute;inset:0}
+  .galaxy .webgl{pointer-events:none}
+  .galaxy .css3d{pointer-events:auto}
+
+  /* eye (front, fades during dive) */
+  .eye{position:absolute;inset:0;z-index:2;transform-origin:50% 42%;will-change:transform,opacity}
+  .eye video{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:134vh;width:auto;max-width:none;will-change:contents;
+    -webkit-mask-image:linear-gradient(to right,transparent 0,#000 17%,#000 83%,transparent 100%),linear-gradient(to bottom,transparent 0,#000 12%,#000 86%,transparent 100%);
+    -webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to right,transparent 0,#000 17%,#000 83%,transparent 100%),linear-gradient(to bottom,transparent 0,#000 12%,#000 86%,transparent 100%);
+    mask-composite:intersect}
+  .scrim{position:absolute;inset:0;pointer-events:none;background:
+    radial-gradient(52vh 66vh at 50% 42%, transparent 62%, rgba(0,0,0,.35) 92%, rgba(5,5,6,.6) 116%),
+    linear-gradient(to bottom, rgba(0,0,0,.4) 0%, transparent 16%, transparent 66%, rgba(0,0,0,.78) 100%)}
+  .reticle{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);width:min(56vh,420px);height:min(56vh,420px);pointer-events:none;opacity:.38}
+  .reticle .br{position:absolute;width:26px;height:26px;border:1px solid rgba(255,255,255,.7)}
+  .reticle .tl{top:0;left:0;border-right:0;border-bottom:0}
+  .reticle .tr{top:0;right:0;border-left:0;border-bottom:0}
+  .reticle .bl{bottom:0;left:0;border-right:0;border-top:0}
+  .reticle .brr{bottom:0;right:0;border-left:0;border-top:0}
+
+  /* phrases that surface in the centre of the eye while scrubbing */
+  .eyephrases{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;width:min(90vw,720px);text-align:center}
+  .eyephrases .ep{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;
+    font-family:"Fraunces",Georgia,serif;font-weight:300;font-style:italic;font-size:clamp(28px,5.2vw,68px);
+    line-height:1;letter-spacing:-.01em;color:var(--ink);opacity:0;will-change:opacity;text-shadow:0 2px 34px rgba(0,0,0,.75)}
+
+  .scroll-hint{position:absolute;left:50%;bottom:clamp(28px,6vh,58px);transform:translateX(-50%);z-index:9;display:flex;flex-direction:column;align-items:center;gap:10px;color:rgba(243,242,238,.7);font-size:10px;text-transform:uppercase}
+  .scroll-hint .ln{width:1px;height:42px;background:linear-gradient(rgba(243,242,238,.85),transparent);animation:drop 2.1s infinite}
+  @keyframes drop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+  /* gallery HUD */
+  .ghint{position:absolute;left:clamp(18px,4vw,46px);bottom:clamp(26px,5vh,46px);z-index:6;color:rgba(255,255,255,.7);font-size:11px;opacity:0;transition:opacity .6s;pointer-events:none}
+  .ghint b{color:#fff;font-weight:400}
+
+  /* 3D card (CSS3D) */
+  .gcard{pointer-events:auto;cursor:none}
+  .gcard-in{width:160px;height:210px;border-radius:16px;background:rgba(26,24,40,.55);padding:11px;
+    backdrop-filter:blur(2px);
+    box-shadow:0 18px 45px rgba(0,0,0,.55),0 0 0 1px rgba(91,91,255,.12),0 0 26px rgba(0,0,255,.20);
+    transition:transform .45s cubic-bezier(.16,1,.3,1),box-shadow .45s ease}
+  .gcard-in img,.gcard-in video{width:100%;height:160px;object-fit:cover;border-radius:11px;display:block;background:#000;
+    box-shadow:0 0 18px rgba(0,0,0,.4) inset}
+  .gcard-in p{margin-top:8px;text-align:center;color:rgba(245,246,255,.92);font-size:12px;font-family:"Space Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gcard:hover .gcard-in{transform:scale(1.16);filter:none!important;opacity:1!important;
+    box-shadow:0 28px 60px rgba(0,0,0,.5),0 0 0 1px rgba(91,91,255,.5),0 0 46px rgba(0,0,255,.6),0 0 90px rgba(0,0,255,.32)}
+
+  /* modal */
+  #modal{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);backdrop-filter:blur(6px)}
+  #modal.on{display:flex}
+  .m-wrap{position:relative;width:auto;max-width:min(94vw,860px)}
+  .m-close{position:absolute;top:-44px;right:0;background:none;border:0;color:#fff;cursor:none;opacity:.85}
+  .m-close:hover{opacity:1}
+  .m-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:48px;height:48px;border-radius:50%;
+    background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.22);color:#fff;cursor:none;opacity:.85;
+    display:flex;align-items:center;justify-content:center;transition:background .25s,opacity .25s,transform .1s}
+  .m-nav:hover{background:var(--teal);color:#03171a;opacity:1}
+  .m-nav:active{transform:translateY(-50%) scale(.92)}
+  .m-prev{left:-66px}
+  .m-next{right:-66px}
+  @media (max-width:820px){.m-prev{left:8px}.m-next{right:8px}.m-nav{width:42px;height:42px;background:rgba(0,0,0,.55)}}
+  .m-card{position:relative;border-radius:16px;background:#1F2121;padding:16px;transition:transform .5s ease-out;transform-style:preserve-3d;
+    box-shadow:rgba(0,0,0,.26) 0 83px 83px 0,rgba(0,0,0,.29) 0 21px 46px 0}
+  .m-card .pic{position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+  .m-card .pic img,.m-card .pic video{display:block;max-width:100%;max-height:78vh;width:auto;height:auto;object-fit:contain}
+  .m-card h3{color:#fff;text-align:center;font-size:19px;font-weight:400;margin:14px 0 6px}
+  .m-desc{color:rgba(255,255,255,.62);text-align:center;font-size:13px;line-height:1.5;font-weight:300;margin:0 4px 6px;max-width:42ch;margin-left:auto;margin-right:auto}
+  .m-desc:empty{display:none}
+  .m-actions{display:flex;gap:8px}
+  .m-actions button{height:38px;border:0;border-radius:10px;background:var(--teal);color:#03171a;cursor:none;font-family:"Space Mono",monospace;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:opacity .25s,transform .1s}
+  .m-actions button:hover{opacity:.85}
+  .m-actions button:active{transform:scale(.97)}
+  .m-dl{flex:1}
+  .m-fav{width:40px}
+
+  .grain{position:fixed;inset:0;z-index:300;pointer-events:none;opacity:.05;mix-blend-mode:overlay}
+  /* opening curtain + description */
+  .panel{position:absolute;top:0;bottom:0;width:50.6%;z-index:7;background:#050506;pointer-events:none;will-change:transform;
+    box-shadow:0 0 60px 10px rgba(0,0,0,.9)}
+  .panel.left{left:0}
+  .panel.right{right:0}
+  .intro{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:0 clamp(22px,6vw,40px)}
+  .intro .inner{max-width:680px;will-change:opacity,transform}
+  .intro .eyebrow{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:rgba(243,242,238,.55);margin-bottom:24px}
+  .intro h1{font-weight:300;font-size:clamp(40px,7vw,86px);line-height:1.02;letter-spacing:-.01em;margin-bottom:26px}
+  .intro h1 em{font-style:italic;color:var(--cobalt)}
+  .intro p{font-weight:300;font-size:clamp(15px,1.7vw,20px);line-height:1.6;color:rgba(243,242,238,.66);max-width:50ch;margin:0 auto}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+
+<div id="loader">
+  <div class="load-mark">SHERWYNNHJ</div>
+  <div class="load-bar"><i id="lbar"></i></div>
+  <div class="load-meta mono"><span>BUFFERING SIGNAL</span><span id="lpct">0%</span></div>
+</div>
+
+<div class="masthead" id="masthead">
+  <div class="word" id="word">SHERWYNNHJ<sup>™</sup></div>
+</div>
+
+<div id="journey">
+  <div class="stage">
+    <div class="galaxy" id="galaxy">
+      <div class="webgl" id="webgl"></div>
+      <div class="css3d" id="css3d"></div>
+    </div>
+
+    <div class="eye" id="eye">
+      <video id="vid" muted playsinline preload="auto" src="eye.mp4"></video>
+      <div class="scrim"></div>
+      <div class="reticle"><span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br brr"></span></div>
+    </div>
+
+    <div class="eyephrases" id="eyephrases">
+      <span class="ep">Dream State</span>
+      <span class="ep">Sleep hides<br>the world</span>
+      <span class="ep">Dreams rewrite it</span>
+    </div>
+
+    <div class="scroll-hint mono" id="hint"><span>Scroll</span><span class="ln"></span></div>
+    <div class="ghint mono" id="ghint">Drag to look around &nbsp;·&nbsp; <b>Click</b> a card</div>
+
+    <!-- opening curtain -->
+    <div class="panel left" id="panelL"></div>
+    <div class="panel right" id="panelR"></div>
+    <div class="intro" id="intro">
+      <div class="inner">
+        <div class="eyebrow">Dream State</div>
+        <h1>Close your eyes<br>and <em>look</em></h1>
+        <p>I'm Sherwyn. Behind every design is a place you can't quite photograph — this is mine. The world behind my eyes, where the work I've made drifts alongside the things I've only imagined. Scroll to part the dark, and look in.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="m-wrap">
+    <button class="m-close" id="mClose" aria-label="close"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <button class="m-nav m-prev" id="mPrev" aria-label="previous work"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button class="m-nav m-next" id="mNext" aria-label="next work"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6l6 6-6 6"/></svg></button>
+    <div class="m-card" id="mCard">
+      <div class="pic" id="mPic"></div>
+      <h3 id="mTitle"></h3>
+      <p class="m-desc" id="mDesc"></p>
+    </div>
+  </div>
+</div>
+
+<svg class="grain"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const vid=$('vid'),loader=$('loader'),lbar=$('lbar'),lpct=$('lpct'),journey=$('journey'),
+        eye=$('eye'),galaxy=$('galaxy'),hint=$('hint'),ghint=$('ghint'),cur=$('cursor'),
+        panelL=$('panelL'),panelR=$('panelR'),intro=$('intro'),word=$('word');
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const epEls=Array.from(document.querySelectorAll('#eyephrases .ep'));
+
+  /* ===== GALLERY DATA — single source of truth =====
+     Add one object per work. The galaxy auto-arranges to however many you list.
+       id        : any unique string (just keep them different)
+       imageUrl  : "works/your-file.jpg"  (local file in /works) or a full https URL
+       title     : the work's name (shows on the card + modal heading)
+       desc      : a short 1–2 sentence blurb (shows in the modal; omit for none)
+     Template:
+       {id:"slug", imageUrl:"works/project.jpg", title:"Project Name", desc:"What it is, in a line."},
+  */
+  const CARDS=[
+    {id:"1",imageUrl:"Assets/BCE.jpg",title:"BCE"},
+    {id:"2",imageUrl:"Assets/Blinding.jpg",title:"Blinding"},
+    {id:"3",imageUrl:"Assets/Butterfly.jpg",title:"Butterfly"},
+    {id:"4",imageUrl:"Assets/Crowd.jpg",title:"Crowd"},
+    {id:"5",imageUrl:"Assets/DJZM.jpg",title:"DJZM"},
+    {id:"6",imageUrl:"Assets/Desperate%20Soul.jpg",title:"Desperate Soul"},
+    {id:"7",imageUrl:"Assets/Drown.jpg",title:"Drown"},
+    {id:"8",imageUrl:"Assets/Mask.jpg",title:"Mask"},
+    {id:"9",imageUrl:"Assets/Myself.jpg",title:"Myself"},
+    {id:"10",imageUrl:"Assets/Phases.jpg",title:"Phases"},
+    {id:"11",imageUrl:"Assets/Polite.jpg",title:"Polite"},
+    {id:"12",imageUrl:"Assets/Rain.jpg",title:"Rain"},
+    {id:"13",imageUrl:"Assets/Wicked%20Cocktails.jpg",title:"Wicked Cocktails"},
+    {id:"14",imageUrl:"Assets/headintheclouds_color.jpg",title:"Head in the Clouds"},
+    {id:"15",imageUrl:"Assets/strangers.jpg",title:"Strangers"},
+    {id:"16",imageUrl:"Assets/CEVICHE.mp4",title:"Ceviche"},
+    {id:"17",imageUrl:"Assets/Look%20MOM.mp4",title:"Look MOM"},
+    {id:"18",imageUrl:"Assets/Quaint.mp4",title:"Quaint"},
+    {id:"19",imageUrl:"Assets/RISE.mp4",title:"Rise"},
+    {id:"20",imageUrl:"Assets/R34%20Poster.mp4",title:"R34 Poster"}
+  ];
+
+  /* which sources are video (mp4 / mov / webm) */
+  const isVid=u=>/\.(mp4|mov|webm|m4v)(\?|$)/i.test(u);
+
+  /* ===== cursor ===== */
+  let cx=innerWidth/2,cy=innerHeight/2,tcx=cx,tcy=cy;
+  addEventListener('pointermove',e=>{tcx=e.clientX;tcy=e.clientY;},{passive:true});
+  (function cl(){cx+=(tcx-cx)*.18;cy+=(tcy-cy)*.18;cur.style.transform='translate('+cx+'px,'+cy+'px) translate(-50%,-50%)';requestAnimationFrame(cl);})();
+  document.addEventListener('pointerover',e=>{ if(e.target.closest&&e.target.closest('a,.gcard,button')) cur.classList.add('big'); });
+  document.addEventListener('pointerout',e=>{ if(e.target.closest&&e.target.closest('a,.gcard,button')) cur.classList.remove('big'); });
+
+  /* ===== masthead: full-bleed -> small centered on scroll ===== */
+  let bigPx=200, smallPx=22, headerP=0;
+  function measureWord(){
+    word.style.fontSize='100px';
+    const w=word.scrollWidth||600;
+    bigPx=(innerWidth*(innerWidth<680?0.985:0.955))/w*100;
+    smallPx=innerWidth<680?15:22;
+    applyWord();
+  }
+  function applyWord(){ word.style.fontSize=(bigPx+(smallPx-bigPx)*headerP).toFixed(1)+'px'; }
+  if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(measureWord); }
+  setTimeout(measureWord,400); window.addEventListener('load',measureWord);
+  addEventListener('resize',measureWord);
+
+  /* ===== preload video ===== */
+  let duration=10.033,loaded=false,fakeP=0;
+  vid.addEventListener('loadedmetadata',()=>{ if(isFinite(vid.duration))duration=vid.duration; });
+  function finish(){loader.classList.add('done');const p=vid.play();if(p&&p.then)p.then(()=>{vid.pause();vid.currentTime=0;}).catch(()=>{try{vid.pause();}catch(e){}});onScroll();}
+  function check(){if(loaded)return;let pct=0;try{if(vid.buffered.length)pct=Math.min(1,vid.buffered.end(vid.buffered.length-1)/(vid.duration||duration));}catch(e){}
+    const s=Math.max(pct,fakeP);lbar.style.width=(s*100)+'%';lpct.textContent=(s*100).toFixed(0)+'%';
+    if(vid.readyState>=4||pct>=.999){loaded=true;lbar.style.width='100%';lpct.textContent='100%';setTimeout(finish,350);}}
+  const fk=setInterval(()=>{fakeP=Math.min(fakeP+.015,.92);if(loaded)clearInterval(fk);check();},80);
+  vid.addEventListener('progress',check);
+  vid.addEventListener('canplaythrough',()=>{if(!loaded){loaded=true;clearInterval(fk);lbar.style.width='100%';lpct.textContent='100%';setTimeout(finish,350);}});
+  setTimeout(()=>{if(!loaded){loaded=true;clearInterval(fk);finish();}},9000);
+  vid.load();
+
+  /* ===== THREE.js stellar gallery ===== */
+  let renderGalaxy=function(){};
+  let camRadiusT=40, theta=0.6, phi=1.18, tTheta=0.6, tPhi=1.18;
+  try{
+    if(typeof THREE==='undefined'||!THREE.CSS3DRenderer) throw new Error('three not loaded');
+    const wScene=new THREE.Scene(), cScene=new THREE.Scene();
+    const cam=new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 3000);
+    const webgl=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    webgl.setPixelRatio(Math.min(devicePixelRatio,2)); webgl.setSize(innerWidth,innerHeight); webgl.setClearColor(0x000000,0);
+    $('webgl').appendChild(webgl.domElement);
+    const css3d=new THREE.CSS3DRenderer(); css3d.setSize(innerWidth,innerHeight);
+    css3d.domElement.style.position='absolute'; css3d.domElement.style.top='0'; css3d.domElement.style.left='0';
+    $('css3d').appendChild(css3d.domElement);
+
+    // ---- soft radial sprite texture (for haze, orbs, motes) ----
+    function softTex(stops){
+      const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+      const grd=g.createRadialGradient(64,64,0,64,64,64);
+      stops.forEach(s=>grd.addColorStop(s[0],s[1]));
+      g.fillStyle=grd;g.fillRect(0,0,128,128);
+      const t=new THREE.CanvasTexture(c);t.minFilter=THREE.LinearFilter;return t;
+    }
+    const hazeTex=softTex([[0,'rgba(255,255,255,0.9)'],[0.45,'rgba(255,255,255,0.32)'],[1,'rgba(255,255,255,0)']]);
+    const orbTex =softTex([[0,'rgba(255,255,255,1)'],[0.3,'rgba(255,255,255,0.55)'],[1,'rgba(255,255,255,0)']]);
+
+    // ---- bottomless gradient skydome (indigo void -> warm dawn bloom) ----
+    const sky=new THREE.Mesh(
+      new THREE.SphereGeometry(1400,32,20),
+      new THREE.ShaderMaterial({
+        side:THREE.BackSide, depthWrite:false,
+        uniforms:{ top:{value:new THREE.Color(0x04050c)}, mid:{value:new THREE.Color(0x0a1640)},
+                   horizon:{value:new THREE.Color(0x16306e)}, bloom:{value:new THREE.Color(0x2f5be0)} },
+        vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+        fragmentShader:[
+          'varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 horizon; uniform vec3 bloom;',
+          'void main(){',
+          '  float h=normalize(vP).y;',                                   // -1 bottom .. 1 top
+          '  vec3 col=mix(mid,top,smoothstep(0.05,0.9,h));',              // upper void
+          '  col=mix(col,horizon,smoothstep(0.15,-0.35,h));',            // lower warms
+          '  float glow=smoothstep(0.0,-0.55,h)*smoothstep(-1.0,-0.4,h);',// soft dawn band low down
+          '  col+=bloom*glow*0.6;',
+          '  gl_FragColor=vec4(col,1.0);',
+          '}'
+        ].join('\n')
+      })
+    );
+    wScene.add(sky);
+
+    // ---- drifting volumetric haze clouds ----
+    const haze=[];
+    for(let i=0;i<16;i++){
+      const warm=Math.random()<0.35;
+      const m=new THREE.SpriteMaterial({map:hazeTex,transparent:true,depthWrite:false,
+        blending:THREE.NormalBlending, opacity:0.05+Math.random()*0.07,
+        color:new THREE.Color(warm?0x2a52c0:0x142e7a)});
+      const s=new THREE.Sprite(m);
+      s.position.set((Math.random()-.5)*150,(Math.random()-.5)*90,(Math.random()-.5)*150);
+      const sc=45+Math.random()*70; s.scale.set(sc,sc,1);
+      s.userData={drift:0.002+Math.random()*0.004,ph:Math.random()*6.28};
+      wScene.add(s); haze.push(s);
+    }
+
+    // ---- dim blooming orbs (distant thoughts) ----
+    const orbs=[];
+    for(let i=0;i<7;i++){
+      const warm=Math.random()<0.5;
+      const m=new THREE.SpriteMaterial({map:orbTex,transparent:true,depthWrite:false,
+        blending:THREE.AdditiveBlending,opacity:0.0,
+        color:new THREE.Color(warm?0x6f93ff:0x2f5be0)});
+      const s=new THREE.Sprite(m);
+      s.position.set((Math.random()-.5)*110,(Math.random()-.5)*70,(Math.random()-.5)*110);
+      const sc=5+Math.random()*12; s.scale.set(sc,sc,1);
+      s.userData={base:0.12+Math.random()*0.18,sp:0.4+Math.random()*0.7,ph:Math.random()*6.28};
+      wScene.add(s); orbs.push(s);
+    }
+
+    // ---- drifting motes (a touch of cosmic) ----
+    const mn=1100, mp=new Float32Array(mn*3);
+    for(let i=0;i<mn;i++){const r=20+Math.random()*60,u=Math.random()*2-1,t2=Math.random()*6.28,rr=Math.sqrt(1-u*u);
+      mp[i*3]=r*rr*Math.cos(t2);mp[i*3+1]=r*u;mp[i*3+2]=r*rr*Math.sin(t2);}
+    const mg=new THREE.BufferGeometry();mg.setAttribute('position',new THREE.BufferAttribute(mp,3));
+    const motes=new THREE.Points(mg,new THREE.PointsMaterial({map:orbTex,color:0xbcccff,size:0.7,sizeAttenuation:true,transparent:true,opacity:0.55,depthWrite:false,blending:THREE.AdditiveBlending}));
+    wScene.add(motes);
+
+    // ---- cards on golden-ratio sphere (store base pos for bob + depth-haze) ----
+    const gr=(1+Math.sqrt(5))/2, n=CARDS.length;
+    const cardObjs=[];
+    CARDS.forEach((card,i)=>{
+      const y=1-(i/(n-1))*2, ry=Math.sqrt(Math.max(0,1-y*y)), th=2*Math.PI*i/gr;
+      const x=Math.cos(th)*ry, z=Math.sin(th)*ry, lr=12+(i%3)*4;
+      const el=document.createElement('div'); el.className='gcard'; el.dataset.id=card.id;
+      const media=isVid(card.imageUrl)
+        ? '<video src="'+card.imageUrl+'" muted loop autoplay playsinline preload="auto"></video>'
+        : '<img src="'+card.imageUrl+'" alt="">';
+      el.innerHTML='<div class="gcard-in">'+media+'<p>'+card.title+'</p></div>';
+      const vEl=el.querySelector('video'); if(vEl){ const pr=vEl.play(); if(pr&&pr.catch)pr.catch(()=>{}); }
+      const obj=new THREE.CSS3DSprite(el); obj.position.set(x*lr,y*lr,z*lr); obj.scale.setScalar(0.024);
+      obj.userData={bx:x*lr,by:y*lr,bz:z*lr,ph:Math.random()*6.28,bob:0.25+Math.random()*0.4,inner:el.firstChild};
+      cScene.add(obj); cardObjs.push(obj);
+    });
+
+    let clock=0;
+    renderGalaxy=function(){
+      clock+=0.016;
+      theta+=(tTheta-theta)*0.08; phi+=(tPhi-phi)*0.08;
+      const r=camR;
+      cam.position.set(r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+      cam.lookAt(0,0,0);
+      // animate atmosphere
+      motes.rotation.y+=0.00035; motes.rotation.x+=0.00012;
+      for(const s of haze){ s.position.x+=Math.sin(clock*s.userData.drift+s.userData.ph)*0.01; s.position.y+=Math.cos(clock*s.userData.drift)*0.006; }
+      for(const o of orbs){ o.material.opacity=o.userData.base*(0.5+0.5*Math.sin(clock*o.userData.sp+o.userData.ph)); }
+      // breathing bob + depth-haze on cards
+      for(const c of cardObjs){
+        c.position.y=c.userData.by+Math.sin(clock*0.5+c.userData.ph)*c.userData.bob;
+        const d=cam.position.distanceTo(c.position);
+        const f=Math.min(1,Math.max(0,(d-12)/30));            // 0 near .. 1 far
+        if(c.userData.inner){ c.userData.inner.style.opacity=(1-0.72*f).toFixed(2); c.userData.inner.style.filter='blur('+(f*3.4).toFixed(2)+'px)'; }
+      }
+      webgl.render(wScene,cam); css3d.render(cScene,cam);
+    };
+    addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();webgl.setSize(innerWidth,innerHeight);css3d.setSize(innerWidth,innerHeight);});
+  }catch(err){ console.warn('Galaxy init skipped:',err.message); }
+
+  /* ===== drag to orbit + click to open modal ===== */
+  let dragging=false,moved=false,sx=0,sy=0,downCard=null,galaxyActive=false,modalOpen=false;
+  const css3dEl=$('css3d');
+  css3dEl.addEventListener('pointerdown',e=>{ if(!galaxyActive||modalOpen)return; dragging=true;moved=false;sx=e.clientX;sy=e.clientY;downCard=e.target.closest?e.target.closest('.gcard'):null; });
+  addEventListener('pointermove',e=>{ if(!dragging)return; const dx=e.clientX-sx,dy=e.clientY-sy; if(Math.abs(dx)+Math.abs(dy)>6)moved=true;
+    tTheta-=dx*0.005; tPhi=clamp(tPhi-dy*0.005,0.25,Math.PI-0.25); sx=e.clientX;sy=e.clientY; });
+  addEventListener('pointerup',e=>{ if(dragging&&!moved&&downCard){ openModal(downCard.dataset.id); } dragging=false;downCard=null; });
+
+  /* ===== modal ===== */
+  const modal=$('modal'),mCard=$('mCard'),mPic=$('mPic'),mTitle=$('mTitle'),mDesc=$('mDesc');
+  let mIdx=0;
+  function renderModal(){const c=CARDS[mIdx];if(!c)return;
+    const ov=mPic.querySelector('video');if(ov){try{ov.pause();}catch(e){}}
+    mPic.innerHTML=isVid(c.imageUrl)
+      ? '<video src="'+c.imageUrl+'" autoplay loop playsinline controls></video>'
+      : '<img src="'+c.imageUrl+'" alt="'+c.title+'">';
+    mTitle.textContent=c.title;mDesc.textContent=c.desc||'';}
+  function openModal(id){const i=CARDS.findIndex(x=>x.id===id);if(i<0)return;mIdx=i;renderModal();modal.classList.add('on');modalOpen=true;}
+  function closeModal(){const v=mPic.querySelector('video');if(v){try{v.pause();}catch(e){}}mPic.innerHTML='';modal.classList.remove('on');modalOpen=false;}
+  function navModal(d){mIdx=(mIdx+d+CARDS.length)%CARDS.length;renderModal();}
+  $('mClose').addEventListener('click',closeModal);
+  $('mPrev').addEventListener('click',e=>{e.stopPropagation();navModal(-1);});
+  $('mNext').addEventListener('click',e=>{e.stopPropagation();navModal(1);});
+  modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+  addEventListener('keydown',e=>{if(!modalOpen)return;
+    if(e.key==='Escape')closeModal();
+    else if(e.key==='ArrowLeft')navModal(-1);
+    else if(e.key==='ArrowRight')navModal(1);});
+  mCard.addEventListener('mousemove',e=>{const r=mCard.getBoundingClientRect();const rx=(e.clientY-r.top-r.height/2)/15;const ry=(r.width/2-(e.clientX-r.left))/15;mCard.style.transition='none';mCard.style.transform='perspective(1000px) rotateX('+rx+'deg) rotateY('+ry+'deg)';});
+  mCard.addEventListener('mouseleave',()=>{mCard.style.transition='transform .5s ease-out';mCard.style.transform='perspective(1000px) rotateX(0) rotateY(0)';});
+
+  /* ===== scroll phases ===== */
+  const C=0.14, A=0.62, B=0.78;          // C: curtain open done, A: dive begins, B: galaxy settled
+  let targetTime=0, camR=40;
+  function onScroll(){
+    const scrollable=journey.offsetHeight-innerHeight;
+    const p=clamp((scrollY-journey.offsetTop)/scrollable,0,1);
+
+    // phase 0 — curtain swipes open, description clears
+    const cp=clamp(p/C,0,1);
+    const ce=cp*cp*(3-2*cp);                            // smoothstep
+    panelL.style.transform='translateX('+(-100*ce).toFixed(2)+'%)';
+    panelR.style.transform='translateX('+( 100*ce).toFixed(2)+'%)';
+    intro.style.opacity=(1-clamp(cp/0.72,0,1)).toFixed(3);
+    intro.style.transform='scale('+(1-0.05*ce).toFixed(3)+')';
+    headerP=ce; applyWord();
+
+    // phase 1 — scrub the eye (begins once curtain is open)
+    const eyeP=clamp((p-C)/(A-C),0,1);
+    targetTime=eyeP*(duration-0.04);
+
+    // phrases surface one at a time in the centre of the eye
+    const segs=epEls.length, seg=1/segs;
+    epEls.forEach((el,k)=>{
+      const center=(k+0.5)*seg;
+      const d=Math.abs(eyeP-center)/(seg*0.5);          // 0 at centre .. 1 at edges
+      let o=clamp(1-d,0,1); o=o*o*(3-2*o);               // smoothstep fade
+      el.style.opacity=o.toFixed(3);
+    });
+
+    // phase 2 — dive into the pupil
+    const tp=clamp((p-A)/(B-A),0,1);
+    eye.style.opacity=(1-tp).toFixed(3);
+    eye.style.transform='scale('+(1+tp*2.8).toFixed(3)+')';
+    eye.style.filter='blur('+(tp*6).toFixed(2)+'px)';
+
+    galaxy.style.opacity=tp.toFixed(3);
+    galaxyActive=tp>0.6;
+    eye.style.pointerEvents = tp>0.5 ? 'none' : 'auto';
+    ghint.style.opacity=(tp>0.85?0.9:0).toString();
+
+    // fly in
+    const gp=clamp((p-A)/(1-A),0,1);
+    camRadiusT=40-26*gp;
+  }
+  addEventListener('scroll',onScroll,{passive:true});
+  addEventListener('resize',onScroll);
+
+  /* ===== master loop ===== */
+  let curTime=0;
+  function loop(){
+    curTime+=(targetTime-curTime)*0.16;
+    if(Math.abs(targetTime-curTime)<0.004)curTime=targetTime;
+    if(vid.readyState>=1 && Math.abs((vid.currentTime||0)-curTime)>0.003){try{vid.currentTime=curTime;}catch(e){}}
+    camR+=(camRadiusT-camR)*0.06;
+    renderGalaxy();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
